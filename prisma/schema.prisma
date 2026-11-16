@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SearchSession {
+  id        String    @id @default(cuid())
+  title     String    @default("Новый поиск")
+  goal      String    @default("chat") // job | ausbildung | chat
+  stage     String    @default("chat") // wizard | analysis | ready | chat
+  profile   String? // JSON-строка с профилем пользователя
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+  vacancies Vacancy[]
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   SearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // user | assistant
+  content   String
+  meta      String? // JSON: { vacancyIds?: string[] }
+  createdAt DateTime      @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model PersonMemory {
+  id            String    @id @default(cuid())
+  key           String    @unique @default("local") // один локальный пользователь
+  model         String? // JSON: PersonModel — долговременная память агента о человеке
+  profile       String? // JSON: UserProfile — последний снимок анкеты (для переноса в новые сессии)
+  lastGoal      String? // job | ausbildung | chat
+  sessionsCount Int       @default(0) // сколько сессий уже видел агент
+  firstSeenAt   DateTime  @default(now())
+  lastSyncAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Vacancy {
+  id          String        @id @default(cuid())
+  sessionId   String
+  session     SearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title       String
+  company     String?
+  location    String?
+  url         String
+  source      String?
+  salary      String?
+  description String?
+  snippet     String?
+  score       Int? // 0-100, насколько подходит по мнению ИИ
+  verdict     String? // короткий вердикт
+  reasons     String? // JSON: string[]
+  risks       String? // JSON: string[]
+  tags        String? // JSON: string[]
+  searchMode  String? // easy | medium | max
+  intel       String? // JSON: проверка ссылки, подробности вакансии и рекомендация (VacancyIntel)
+  createdAt   DateTime      @default(now())
+
+  @@index([sessionId, score])
+}
